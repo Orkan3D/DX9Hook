@@ -23,8 +23,6 @@
 
 #include <algorithm>
 #include "d3d9.h"
-#include "SP_IO.hpp"
-#include "SP_SysUtils.hpp"
 #include "SpD3D9Interface.h"
 #include "SpD3D9Device.h"
 #include "SpD3D9SwapChain.h"
@@ -77,17 +75,70 @@
 #define _SP_D3D9_KEYPRESS_WAIT_TIME_ 100
 #define _SP_D3D9_DEFAULT_BEEP_DURATION_ 100
 
+inline void D3D9_OutputLogEvent(const char* fmt, ...)
+{
+    char msg[4000];
+    va_list ap;
+    va_start(ap, fmt);
+    _vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
+    OutputDebugStringA(msg);
+}
+
 #define _SP_D3D9_LOG_DEFAULT_FILE_ "_sp_d3d9_debug.log"
-#define _SP_SP_D3D9_LOG_INIT_(file) {std::string str_tmp_="[";append_current_date_string(&str_tmp_,false,SP_DATE_MMDDYYYY);str_tmp_.append("  ");append_current_timestamp_string(&str_tmp_,false);file_write_text(file,str_tmp_.append("]  Attached to process\n").c_str());}
+#define _SP_SP_D3D9_LOG_INIT_(file) __noop
 #define _SP_D3D9_LOG_EV_MSG_BUFF_SIZE_ 128
-#define _SP_D3D9_LOG_EVENT_(msg, ...) _SP_D3D9_LOG_SPEC_EVENT_(_SP_D3D9_LOG_DEFAULT_FILE_, msg, ##__VA_ARGS__)
-#define _SP_D3D9_LOG_SPEC_EVENT_(file, msg, ...) {std::string str_tmp_="";append_current_timestamp_string(&str_tmp_,true);char c_str_tmp_[_SP_D3D9_LOG_EV_MSG_BUFF_SIZE_];snprintf(c_str_tmp_,_SP_D3D9_LOG_EV_MSG_BUFF_SIZE_,msg, ##__VA_ARGS__);file_append_text(file,str_tmp_.append(" ").append(c_str_tmp_).c_str());}
+
+#define _SP_D3D9_LOG_EVENT_(msg, ...) D3D9_OutputLogEvent(msg, ##__VA_ARGS__)
+#define _SP_D3D9_LOG_SPEC_EVENT_(file, msg, ...) __noop
+
+#ifdef _DEBUG
+inline void* getCallerAddress()
+{
+    __asm
+    {
+        mov ecx, dword ptr ss : [ebp + 0] ;
+        mov eax, dword ptr ss : [ecx + 4] ;
+    }
+}
+#else
+inline void* getCallerAddress()
+{
+    __asm
+    {
+        mov eax, dword ptr ss : [ebp + 4] ;
+    }
+}
+#endif
+
+#define D3D_DEBUG_INFO
 
 #ifdef D3D_DEBUG_INFO
     #include <DxErr.h>
     #pragma comment(lib, "dxerr.lib")
-    #define _SP_D3D9_CHECK_FAILED_(f) {HRESULT hres_tmp_;if(FAILED(hres_tmp_ = f)){_SP_D3D9_LOG_EVENT_("%s (%s) - Occurred in:  thread %d;  %s (line %d)",DXGetErrorString(hres_tmp_),DXGetErrorDescription(hres_tmp_),GetCurrentThreadId(),__FUNCTION__,__LINE__);}}
-    #define _SP_D3D9_CHECK_AND_RETURN_FAILED_(f) {HRESULT hres_tmp_;if(FAILED(hres_tmp_ = f)){_SP_D3D9_LOG_EVENT_("%s (%s) - Occurred in:  thread %d;  %s (line %d)",DXGetErrorString(hres_tmp_),DXGetErrorDescription(hres_tmp_),GetCurrentThreadId(),__FUNCTION__,__LINE__);}return hres_tmp_;}
+
+    #define _SP_D3D9_CHECK_FAILED_(f) \
+    { \
+        HRESULT hres_tmp_ = f; \
+        _SP_D3D9_LOG_EVENT_("[DXH] %s: %s", __FUNCTION__, DXGetErrorString(hres_tmp_)); \
+        if(FAILED(hres_tmp_)) { \
+            _SP_D3D9_LOG_EVENT_("[DXH]     Error String: %s\n", DXGetErrorDescriptionA(hres_tmp_)); \
+        } else { \
+        }\
+    }
+
+#define _SP_D3D9_CHECK_AND_RETURN_FAILED_(f) \
+    { \
+        HRESULT hres_tmp_ = f; \
+        _SP_D3D9_LOG_EVENT_("[DXH] %s: %s (%i; @ %p)", __FUNCTION__, DXGetErrorString(hres_tmp_), hres_tmp_, getCallerAddress()); \
+        if(FAILED(hres_tmp_)) { \
+            _SP_D3D9_LOG_EVENT_("[DXH]     Error String: %s\n", DXGetErrorDescriptionA(hres_tmp_)); \
+        } else { \
+        }\
+        return hres_tmp_; \
+    }
+
 #else
     //#define _SP_D3D9_CHECK_FAILED_(f) {HRESULT hres_tmp_;if(FAILED(hres_tmp_ = f)){_SP_D3D9_LOG_EVENT_("D3D9 ERROR - Occurred in:  thread %d;  %s (line %d)",GetCurrentThreadId(),__FUNCTION__,__LINE__);}}
     //#define _SP_D3D9_CHECK_AND_RETURN_FAILED_(f) {HRESULT hres_tmp_;if(FAILED(hres_tmp_ = f)){_SP_D3D9_LOG_EVENT_("D3D9 ERROR - Occurred in:  thread %d;  %s (line %d)",GetCurrentThreadId(),__FUNCTION__,__LINE__);}return hres_tmp_;}

@@ -12,6 +12,8 @@
 #include <d3dx9core.h>
 #include "SpD3D9.h"
 
+class SpD3D9Interface;
+
 // Forward declaration
 class SpD3D9SwapChain; // Wrapper class for IDirect3DSwapChain9
 
@@ -19,7 +21,6 @@ class SpD3D9Device : public IDirect3DDevice9
 {
 public:
     IDirect3DDevice9 *m_pIDirect3DDevice9 = NULL;
-    SpD3D9Overlay *overlay = NULL;
 
     unsigned int present_calls = 0; // Number of times Present() was called thus far in the current second (used to determine FPS)
     unsigned int endscene_calls = 0; // Number of times EndScene() was called thus far in the current second (used to determine FPS)

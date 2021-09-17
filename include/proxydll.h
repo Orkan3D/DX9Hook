@@ -3,24 +3,12 @@
 
 #pragma once
 
-#ifndef _SP_D3D9_OVERLAY_TEMPLATE_H_
-    #define _SP_D3D9_OVERLAY_TEMPLATE_H_
-
-#ifdef _SP_DARK_SOULS_1_
-    //#include "SpModDarkSouls1.h"
-#endif // _SP_DARK_SOULS_1_
-
 #define SP_D3D9_EXPORT_COUNT_ 1
 
 
 //////////////////////// WRAPPER DLL FUNCTIONS ////////////////////////
 // Exported function
 IDirect3D9* WINAPI Direct3DCreate9(UINT SDKVersion);
-// Regular functions
-void InitInstance(HANDLE hModule);
-void InitSettings(); // Parses settings file (.ini) for intialization settings
-void ExitInstance(void); // Unloads DLL when exiting
-void LoadOriginalDll(void); // Loads the original d3d9.dll from the system directory
 
 
 //////////////////////// CONSTANTS & ENUMS ////////////////////////
@@ -54,23 +42,6 @@ const char *SP_OL_TXT_STYLE_VALS[3] = { "OUTLINE", "SHADOW", "PLAIN" }; // If sp
 #define _SP_D3D9_DEFAULT_VAL_OL_TXT_STYLE_ SP_OL_TXT_STYLE_VALS[SP_D3D9O_OUTLINED_TEXT]
 
 
-//extern "C" void __stdcall D3DPERF_BeginEvent_jmp();
-//extern "C" void __stdcall D3DPERF_EndEvent_jmp();
-//extern "C" void __stdcall D3DPERF_GetStatus_jmp();
-//extern "C" void __stdcall D3DPERF_QueryRepeatFrame_jmp();
-//extern "C" void __stdcall D3DPERF_SetMarker_jmp();
-//extern "C" void __stdcall D3DPERF_SetOptions_jmp();
-//extern "C" void __stdcall D3DPERF_SetRegion_jmp();
-//extern "C" void __stdcall DebugSetLevel_jmp();
-//extern "C" void __stdcall DebugSetMute_jmp();
-//extern "C" void __stdcall Direct3D9EnableMaximizedWindowedModeShim_jmp();
-//extern "C" void __stdcall Direct3DCreate9_jmp();
-//extern "C" void __stdcall Direct3DCreate9Ex_jmp();
-//extern "C" void __stdcall Direct3DShaderValidatorCreate9_jmp();
-//extern "C" void __stdcall PSGPError_jmp();
-//extern "C" void __stdcall PSGPSampleTexture_jmp();
-
-
 //////////////////////// VARIABLES & DATA ////////////////////////
 
 // Initialization data
@@ -82,38 +53,3 @@ unsigned int generic_dll_count; // Number of generic DLLs loaded at runtime
 std::string hostname;
 std::string local_username;
 std::string game_exe_dir;
-
-// User preferences
-bool user_pref_overlay_text_feed_enabled;
-bool user_pref_audio_feedback_enabled;
-bool user_pref_verbose_output_enabled;
-int user_pref_overlay_text_size;
-DWORD user_pref_overlay_text_pos;
-SP_D3D9O_TEXT_FEED_STYLE_ENUM user_pref_overlay_text_style;
-int user_pref_show_text_feed_info_bar;
-unsigned int console_key;
-// Mod variables & data
-SHORT key_state[256];	// Buffer for async key states
-extern bool input_loop_enabled; // Controls whether the main loop for the mod is enabled/disabled
-
-#ifdef _SP_DARK_SOULS_1_
-// Dark Souls PvP Watchdog Settings
-// (These values will be used to adjust the overlay to avoid clipping with the DSPW overlay)
-int dspw_pref_font_size;
-int user_pref_dspw_ol_offset;
-#endif // _SP_DARK_SOULS_1_
-
-
-//////////////////////// MOD FUNCTION PROTOTYPES ////////////////////////
-DWORD WINAPI init_input_thread(LPVOID lpParam); // Determines whether mod is enabled and calls the main loop for the mod
-void get_keybinds(); // Reads in configurable keybind values as specified in the settings file (.ini)
-void get_user_preferences(); // Reads in user preferences as specified in the settings file (.ini)
-HINSTANCE load_dll_from_settings_file(const char *file_name, const char *section, const char *key, char *buffer, unsigned int buffer_size); // Loads a single DLL specified by the given settings file, section, and key parameters
-unsigned int load_generic_dlls_from_settings_file(const char *file_name, const char *section, const char *base_key); // Load as many generic DLLs (not wrappers) as are specified in the settings file (key numbers must be consecutive)
-
-#ifdef _SP_DARK_SOULS_1_
-int get_dspw_font_size(); // Reads the PvP Watchdog settings file (DSPWSteam.ini) to obtain the DSPW font size in case user wants to adjust this overlay to avoid clipping with the PvP Watchdog overlay
-#endif // _SP_DARK_SOULS_1_
-
-
-#endif // _SP_D3D9_OVERLAY_TEMPLATE_H_

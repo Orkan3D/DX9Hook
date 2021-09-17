@@ -90,26 +90,12 @@ HRESULT __stdcall SpD3D9Interface::CheckDeviceType(UINT iAdapter, D3DDEVTYPE Dev
 
 HRESULT __stdcall SpD3D9Interface::CheckDeviceFormat(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, DWORD Usage, D3DRESOURCETYPE RType, D3DFORMAT CheckFormat)
 {
-    HRESULT hres = m_pIDirect3D9->CheckDeviceFormat(Adapter, DeviceType, AdapterFormat, Usage, RType, CheckFormat);
-
-    if (hres != D3DERR_NOTAVAILABLE)
-    {
-        _SP_D3D9_CHECK_AND_RETURN_FAILED_(hres);
-    }
-
-    return hres;
+    _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3D9->CheckDeviceFormat(Adapter, DeviceType, AdapterFormat, Usage, RType, CheckFormat));
 }
 
 HRESULT __stdcall SpD3D9Interface::CheckDeviceMultiSampleType(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT SurfaceFormat, BOOL Windowed, D3DMULTISAMPLE_TYPE MultiSampleType, DWORD* pQualityLevels)
 {
-    HRESULT hres = m_pIDirect3D9->CheckDeviceMultiSampleType(Adapter, DeviceType, SurfaceFormat, Windowed, MultiSampleType, pQualityLevels);
-
-    if (hres != D3DERR_NOTAVAILABLE)
-    {
-        _SP_D3D9_CHECK_AND_RETURN_FAILED_(hres);
-    }
-
-    return hres;
+    _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3D9->CheckDeviceMultiSampleType(Adapter, DeviceType, SurfaceFormat, Windowed, MultiSampleType, pQualityLevels));
 }
 
 HRESULT __stdcall SpD3D9Interface::CheckDepthStencilMatch(UINT Adapter, D3DDEVTYPE DeviceType, D3DFORMAT AdapterFormat, D3DFORMAT RenderTargetFormat, D3DFORMAT DepthStencilFormat)
@@ -135,9 +121,6 @@ HMONITOR __stdcall SpD3D9Interface::GetAdapterMonitor(UINT Adapter)
 HRESULT __stdcall SpD3D9Interface::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice9** ppReturnedDeviceInterface)
 {
     extern SpD3D9Device* gl_pSpD3D9Device; // Global var
-    extern bool input_loop_paused;
-
-    input_loop_paused = true;
 
     //while (gl_pSpD3D9Device != NULL)
     if (gl_pSpD3D9Device != NULL)
@@ -166,10 +149,9 @@ HRESULT __stdcall SpD3D9Interface::CreateDevice(UINT Adapter, D3DDEVTYPE DeviceT
     // Note: The object will delete itself once Ref count is zero (similar to COM objects)
     gl_pSpD3D9Device = new SpD3D9Device(this, *ppReturnedDeviceInterface, hFocusWindow, pPresentationParameters);
 
-    // Store our pointer (the fake one) for returning it to the calling progam
+    // Store our pointer (the fake one) for returning it to the calling program
     *ppReturnedDeviceInterface = gl_pSpD3D9Device;
 
-    input_loop_paused = false;
     return(hres);
 }
 

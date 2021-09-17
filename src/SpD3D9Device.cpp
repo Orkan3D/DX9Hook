@@ -4,21 +4,12 @@
 #include "stdafx.h"
 
 
-SpD3D9Device::SpD3D9Device(SpD3D9Interface *d3d_interface, IDirect3DDevice9* pOriginal, HWND new_focus_window, D3DPRESENT_PARAMETERS *present_params)
+SpD3D9Device::SpD3D9Device(SpD3D9Interface* d3d_interface, IDirect3DDevice9* pOriginal, HWND new_focus_window, D3DPRESENT_PARAMETERS* present_params)
 {
     m_pIDirect3DDevice9 = pOriginal; // Store the pointer to original object
-
-    overlay = new SpD3D9Overlay(d3d_interface, this, new_focus_window, present_params);
 }
 
-SpD3D9Device::~SpD3D9Device(void)
-{
-    if (overlay != NULL)
-    {
-        delete overlay;
-        overlay = NULL;
-    }
-}
+SpD3D9Device::~SpD3D9Device(void) { }
 
 HRESULT SpD3D9Device::QueryInterface(REFIID riid, void** ppvObj)
 {
@@ -48,16 +39,14 @@ ULONG SpD3D9Device::Release(void)
     // original Release() function.
 
     // Global vars
-    extern SpD3D9Device *gl_pSpD3D9Device;
-    extern SpD3D9SwapChain *gl_pSpD3D9SwapChain;
+    extern SpD3D9Device* gl_pSpD3D9Device;
+    extern SpD3D9SwapChain* gl_pSpD3D9SwapChain;
 
     // Call original function
     ULONG count = m_pIDirect3DDevice9->Release();
 
     if (count == 0)
     {
-        overlay->release_tasks();
-
         if (gl_pSpD3D9SwapChain != NULL)
         {
             gl_pSpD3D9SwapChain->Release();
@@ -82,11 +71,8 @@ ULONG SpD3D9Device::ForceRelease()
     // original Release() function.
 
     // Global vars
-    extern SpD3D9Device *gl_pSpD3D9Device;
-    extern SpD3D9SwapChain *gl_pSpD3D9SwapChain;
-
-    // Release overlay resources
-    overlay->force_release_tasks();
+    extern SpD3D9Device* gl_pSpD3D9Device;
+    extern SpD3D9SwapChain* gl_pSpD3D9SwapChain;
 
     ULONG count = 1;
     while (gl_pSpD3D9SwapChain != NULL && count > 0)
@@ -115,14 +101,7 @@ ULONG SpD3D9Device::ForceRelease()
 
 HRESULT SpD3D9Device::TestCooperativeLevel(void)
 {
-    HRESULT hres = m_pIDirect3DDevice9->TestCooperativeLevel();
-
-    if (hres == D3DERR_DRIVERINTERNALERROR)
-    {
-        _SP_D3D9_CHECK_AND_RETURN_FAILED_(hres);
-    }
-
-    return hres;
+    _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->TestCooperativeLevel());
 }
 
 UINT SpD3D9Device::GetAvailableTextureMem(void)
@@ -150,7 +129,7 @@ HRESULT SpD3D9Device::GetDisplayMode(UINT iSwapChain, D3DDISPLAYMODE* pMode)
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->GetDisplayMode(iSwapChain, pMode));
 }
 
-HRESULT SpD3D9Device::GetCreationParameters(D3DDEVICE_CREATION_PARAMETERS *pParameters)
+HRESULT SpD3D9Device::GetCreationParameters(D3DDEVICE_CREATION_PARAMETERS* pParameters)
 {
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->GetCreationParameters(pParameters));
 }
@@ -177,7 +156,7 @@ HRESULT SpD3D9Device::CreateAdditionalSwapChain(D3DPRESENT_PARAMETERS* pPresenta
 
 HRESULT SpD3D9Device::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9** pSwapChain)
 {
-    extern SpD3D9SwapChain *gl_pSpD3D9SwapChain;
+    extern SpD3D9SwapChain* gl_pSpD3D9SwapChain;
 
     HRESULT hres = m_pIDirect3DDevice9->GetSwapChain(iSwapChain, pSwapChain);
 
@@ -195,8 +174,6 @@ HRESULT SpD3D9Device::GetSwapChain(UINT iSwapChain, IDirect3DSwapChain9** pSwapC
     }
     else if (iSwapChain != 0)
     {
-        _SP_D3D9_LOG_EVENT_("WARNING: Multiple swap chains not supported (GetSwapChain called with index %u)", iSwapChain);
-        overlay->text_feed->print(std::string("WARNING: Multiple swap chains not supported (GetSwapChain called with index ").append(std::to_string(iSwapChain)).append(")").c_str(), _SP_D3D9_OL_TEXT_FEED_MSG_LIFESPAN_, true, SP_D3D9O_TEXT_COLOR_RED);
     }
 
     return hres;
@@ -209,49 +186,11 @@ UINT    SpD3D9Device::GetNumberOfSwapChains(void)
 
 HRESULT SpD3D9Device::Reset(D3DPRESENT_PARAMETERS* pPresentationParameters)
 {
-    _SP_D3D9_LOG_EVENT_("Entering %s (thread %d)", __FUNCTION__, GetCurrentThreadId());
-
-    HRESULT hres;
-
-    // Store presentation parameters
-    D3DPRESENT_PARAMETERS present_params;
-    memcpy_s(&present_params, sizeof(present_params), pPresentationParameters, sizeof(*pPresentationParameters));
-
-    bool console_is_open = overlay->console->is_open();
-    overlay->reset_tasks(pPresentationParameters, console_is_open);
-
-    // Call original Reset() method
-    hres = m_pIDirect3DDevice9->Reset(pPresentationParameters);
-    _SP_D3D9_CHECK_FAILED_(hres);
-
-    overlay->post_reset_tasks(&present_params, console_is_open);
-
-    _SP_D3D9_LOG_EVENT_("Exiting %s (thread %d)", __FUNCTION__, GetCurrentThreadId());
-    return hres;
+    _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->Reset(pPresentationParameters));
 }
 
 HRESULT SpD3D9Device::Present(CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
 {
-    // Draw overlay before presenting frame
-    overlay->draw(NULL);
-
-
-    // Call plugin present() functions
-    if (SpD3D9Overlay::run_plugin_funcs)
-    {
-        for (auto plugin : SpD3D9Overlay::loaded_libraries)
-        {
-            if (plugin.present_func != NULL)
-            {
-                plugin.present_func(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion, 0);
-            }
-        }
-    }
-
-
-    present_calls++; // Increment Present() call counter for the current second
-    SpD3D9Overlay::frame_count++; // Increment global frame count
-    // Call original routine
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->Present(pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion));
 }
 
@@ -339,7 +278,7 @@ HRESULT SpD3D9Device::GetFrontBufferData(UINT iSwapChain, IDirect3DSurface9* pDe
 
 HRESULT SpD3D9Device::StretchRect(IDirect3DSurface9* pSourceSurface, CONST RECT* pSourceRect, IDirect3DSurface9* pDestSurface, CONST RECT* pDestRect, D3DTEXTUREFILTERTYPE Filter)
 {
-    _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->StretchRect(pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter));
+     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->StretchRect(pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter));
 }
 
 HRESULT SpD3D9Device::ColorFill(IDirect3DSurface9* pSurface, CONST RECT* pRect, D3DCOLOR color)
@@ -369,14 +308,7 @@ HRESULT SpD3D9Device::SetDepthStencilSurface(IDirect3DSurface9* pNewZStencil)
 
 HRESULT SpD3D9Device::GetDepthStencilSurface(IDirect3DSurface9** ppZStencilSurface)
 {
-    HRESULT hres = m_pIDirect3DDevice9->GetDepthStencilSurface(ppZStencilSurface);
-
-    if (hres != D3D_OK && hres != D3DERR_NOTFOUND)
-    {
-        _SP_D3D9_CHECK_AND_RETURN_FAILED_(hres);
-    }
-
-    return hres;
+    _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->GetDepthStencilSurface(ppZStencilSurface));
 }
 
 HRESULT SpD3D9Device::BeginScene(void)
@@ -386,24 +318,6 @@ HRESULT SpD3D9Device::BeginScene(void)
 
 HRESULT SpD3D9Device::EndScene(void)
 {
-    // Drawing can be done here before the scene is shown to the user
-
-    overlay->end_scene_tasks();
-
-    // Call plugin end_scene() functions
-    if (SpD3D9Overlay::run_plugin_funcs)
-    {
-        for (auto plugin : SpD3D9Overlay::loaded_libraries)
-        {
-            if (plugin.end_scene_func != NULL)
-            {
-                plugin.end_scene_func();
-            }
-        }
-    }
-
-    endscene_calls++; // Increment EndScene call counter for stat-keeping
-
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->EndScene());
 }
 
@@ -562,7 +476,7 @@ HRESULT SpD3D9Device::SetCurrentTexturePalette(UINT PaletteNumber)
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->SetCurrentTexturePalette(PaletteNumber));
 }
 
-HRESULT SpD3D9Device::GetCurrentTexturePalette(UINT *PaletteNumber)
+HRESULT SpD3D9Device::GetCurrentTexturePalette(UINT* PaletteNumber)
 {
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->GetCurrentTexturePalette(PaletteNumber));
 }
@@ -786,122 +700,3 @@ HRESULT SpD3D9Device::CreateQuery(D3DQUERYTYPE Type, IDirect3DQuery9** ppQuery)
 {
     _SP_D3D9_CHECK_AND_RETURN_FAILED_(m_pIDirect3DDevice9->CreateQuery(Type, ppQuery));
 }
-
-
-
-/////////////////////// Overlay-related functions start here ///////////////////////
-
-
-
-
-
-/*// Prints various game window data to the overlay text feed
-void SpD3D9Device::print_debug_data(unsigned long long duration, bool show_timestamp)
-{
-    std::string str;
-    if (is_windowed)
-    {
-        print_to_overlay_feed("Windowed mode", duration, show_timestamp);
-    }
-    else
-    {
-        print_to_overlay_feed("Fullscreen mode", duration, show_timestamp);
-    }
-
-    D3DDISPLAYMODE display_mode;
-    HRESULT hres = GetDisplayMode(0, &display_mode);
-    _SP_D3D9_CHECK_FAILED_(GetDisplayMode(0, &display_mode));
-    if (!FAILED(hres))
-    {
-        print_to_overlay_feed(std::string("DisplayMode: (0,0)  ").append(std::to_string(display_mode.Width)).append("x").append(std::to_string(display_mode.Height)).c_str(), duration, show_timestamp);
-    }
-    else
-    {
-        // Handle error
-        print_to_overlay_feed("Device: ERROR", duration, show_timestamp);
-    }
-
-    if (game_window != NULL)
-    {
-        rect_to_string(game_window_rect, "GameWindow", &str);
-        print_to_overlay_feed(str.c_str(), duration, show_timestamp);
-    }
-    else
-    {
-        print_to_overlay_feed("GameWindow: NULL", duration, show_timestamp);
-    }
-
-    // Print focus window data (if not NULL)
-    if (focus_window != NULL)
-    {
-        rect_to_string(&focus_window_rect, "FocusWindow", &str);
-        print_to_overlay_feed(str.c_str(), duration, show_timestamp);
-    }
-    else
-    {
-        print_to_overlay_feed("FocusWindow: NULL", duration, show_timestamp);
-    }
-
-    // Print device window data (if not NULL)
-    if (device_window != NULL)
-    {
-        rect_to_string(&device_window_rect, "DeviceWindow", &str);
-        print_to_overlay_feed(str.c_str(), duration, show_timestamp);
-    }
-    else
-    {
-        print_to_overlay_feed("DeviceWindow: NULL", duration, show_timestamp);
-    }
-
-    rect_to_string(&focus_window_rect, "BackBuffer", &str);
-    print_to_overlay_feed(str.c_str(), duration, show_timestamp);
-
-    RECT vp_rect;
-    get_viewport_as_rect(&vp_rect);
-    rect_to_string(&vp_rect, "ViewPort", &str);
-    print_to_overlay_feed(str.c_str(), duration, show_timestamp);
-
-    print_to_overlay_feed(std::string("GetBackBufferCallCount: ").append(std::to_string(get_back_buffer_calls)).c_str(), duration, false);
-    print_to_overlay_feed(std::string("PresentCallCount: ").append(std::to_string(present_calls)).c_str(), duration, false);
-    print_to_overlay_feed(std::string("SwapChainPresentCallCount: ").append(std::to_string(swap_chain_present_calls)).c_str(), duration, false);
-    print_to_overlay_feed(std::string("EndSceneCallCount: ").append(std::to_string(endscene_calls)).c_str(), duration, false);
-}
-
-
-// Constructs a string describing the specified RECT struct and stores it in the given std::string
-void rect_to_string(RECT *rect, const char *rect_name, std::string *str)
-{
-    str->clear();
-    str->append(rect_name).append(std::string(" (")).append(std::to_string(rect->left)).append(",").append(std::to_string(rect->top)).append(")  ").append(std::to_string(rect->right - rect->left)).append("x").append(std::to_string(rect->bottom - rect->top));
-}
-
-// Constructs a RECT struct from the device viewport
-RECT *SpD3D9Device::get_viewport_as_rect(RECT *rect)
-{
-    D3DVIEWPORT9 viewport;
-    HRESULT hres = GetViewport(&viewport);
-
-    if (hres == D3DERR_INVALIDCALL)
-    {
-        // Handle error
-    }
-
-    SetRect(rect, viewport.X, viewport.Y, viewport.X + viewport.Width, viewport.Y + viewport.Height);
-
-    return rect;
-}
-
-// Constructs a RECT struct from the device viewport (and stores the viewport)
-RECT *SpD3D9Device::get_viewport_as_rect(RECT *rect, D3DVIEWPORT9 *viewport)
-{
-    HRESULT hres = GetViewport(viewport);
-
-    if (hres == D3DERR_INVALIDCALL)
-    {
-        // Handle error
-    }
-
-    SetRect(rect, viewport->X, viewport->Y, viewport->X + viewport->Width, viewport->Y + viewport->Height);
-
-    return rect;
-}*/
